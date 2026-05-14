@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - DriveX</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-orb orb-3"></div>
+
+    <nav>
+        <div class="logo">DriveX.</div>
+        <ul class="nav-links">
+            <li><a href="home.html">Home</a></li>
+            <li><a href="catalog.html">Catalog</a></li>
+            <li><a href="booking.html">Bookings</a></li>
+            <li><a href="profile.html" style="color: var(--primary-color);">Profile</a></li>
+        </ul>
+        <div class="nav-actions">
+            <a href="index.html" class="btn-outline" onclick="localStorage.clear()">Logout</a>
+        </div>
+    </nav>
+
+    <div class="container perspective-container" style="display: flex; justify-content: center;">
+        <div class="glass-panel tilt-card" style="width: 100%; max-width: 600px; padding: 40px; text-align: center;">
+            <div id="avatarCircle" style="width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); margin: 0 auto 20px auto; display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: bold; color: white; box-shadow: 0 10px 20px rgba(0,0,0,0.3);">
+                JD
+            </div>
+            <h2 id="profileName" style="font-size: 2rem;">John Doe</h2>
+            <p id="profileEmail" style="color: var(--text-muted); margin-bottom: 30px;">john.doe@example.com</p>
+
+            <form id="profileForm">
+                <div style="display: flex; gap: 15px;">
+                    <div class="form-group" style="text-align: left; flex: 1;">
+                        <label>First Name</label>
+                        <input type="text" id="firstNameField" class="form-control" value="John" required>
+                    </div>
+                    <div class="form-group" style="text-align: left; flex: 1;">
+                        <label>Last Name</label>
+                        <input type="text" id="lastNameField" class="form-control" value="Doe" required>
+                    </div>
+                </div>
+                <div class="form-group" style="text-align: left;">
+                    <label>Email Address</label>
+                    <input type="email" id="emailField" class="form-control" value="john.doe@example.com" required>
+                </div>
+                <div class="form-group" style="text-align: left;">
+                    <label>Phone Number</label>
+                    <input type="tel" id="phoneField" class="form-control" value="+1 234 567 8900">
+                </div>
+                <hr style="border-color: var(--glass-border); margin: 20px 0;">
+                <h3 style="text-align: left; margin-bottom: 15px;">Security</h3>
+                <div class="form-group" style="text-align: left;">
+                    <label>New Password</label>
+                    <input type="password" id="passwordField" class="form-control" placeholder="Leave blank to keep current password">
+                </div>
+
+                <button type="submit" class="btn-primary" style="margin-top: 20px; width: 100%;">Save Changes</button>
+            </form>
+        </div>
+    </div>
+<script>
+    (function() {
+        const token = localStorage.getItem('token');
+        const userStr = localStorage.getItem('drivex_user');
+        
+        if (!token || !userStr) {
+            window.location.href = 'login.html';
+            return;
+        }
+
+        const user = JSON.parse(userStr);
+        const firstName = localStorage.getItem('drivex_firstName') || '';
+        const lastName  = localStorage.getItem('drivex_lastName')  || '';
+        const email     = localStorage.getItem('drivex_email')     || '';
+        const phone     = localStorage.getItem('drivex_phone')     || '';
+
+        // Avatar initials
+        const initials = ((firstName.charAt(0) || '') + (lastName.charAt(0) || 'D')).toUpperCase() || 'U';
+        document.getElementById('avatarCircle').textContent = initials;
+
+        // Display name & email
+        document.getElementById('profileName').textContent  = (firstName + ' ' + lastName).trim() || 'User';
+        document.getElementById('profileEmail').textContent = email;
+
+        // Fill form fields
+        document.getElementById('firstNameField').value = firstName;
+        document.getElementById('lastNameField').value  = lastName;
+        document.getElementById('emailField').value     = email;
+        document.getElementById('phoneField').value     = phone;
+
+        // Handle Form Submission
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const updatedData = {
+                full_name: document.getElementById('firstNameField').value.trim() + ' ' + document.getElementById('lastNameField').value.trim(),
+                email: document.getElementById('emailField').value.trim(),
+                phone: document.getElementById('phoneField').value.trim()
+            };
+
+            const newPassword = document.getElementById('passwordField').value;
+            if (newPassword) {
+                updatedData.password = newPassword;
+            }
+
+            try {
+                const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+                    ? 'http://localhost:5000' 
+                    : '';
+                
+                const response = await fetch(`${API_BASE}/api/users/${user.id}`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(updatedData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert('Profile updated successfully!');
+                    
+                    // Update Local Storage
+                    const updatedUser = result.data || result;
+                    localStorage.setItem('drivex_user', JSON.stringify(updatedUser));
+                    localStorage.setItem('drivex_email', updatedUser.email);
+                    localStorage.setItem('drivex_phone', updatedUser.phone || '');
+                    
+                    const nameParts = (updatedUser.full_name || '').split(' ');
+                    const fName = nameParts[0] || '';
+                    const lName = nameParts.slice(1).join(' ') || '';
+                    
+                    localStorage.setItem('drivex_firstName', fName);
+                    localStorage.setItem('drivex_lastName', lName);
+
+                    // Update UI
+                    document.getElementById('profileName').textContent = updatedUser.full_name;
+                    document.getElementById('profileEmail').textContent = updatedUser.email;
+                    document.getElementById('avatarCircle').textContent = ((fName.charAt(0) || '') + (lName.charAt(0) || '')).toUpperCase() || 'U';
+                    document.getElementById('passwordField').value = ''; // Clear password field
+                } else {
+                    alert(result.message || 'Failed to update profile');
+                }
+            } catch (error) {
+                console.error('Update error:', error);
+                alert('An error occurred. Please check if the server is running.');
+            }
+        });
+    })();
+</script>
+</body>
+</html>

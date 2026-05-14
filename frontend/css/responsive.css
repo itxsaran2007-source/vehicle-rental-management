@@ -1,0 +1,1 @@
+@media (max-width: 900px) { .sidebar { position: relative; width: 100%; } .dashboard-grid { grid-template-columns: 1fr; } }

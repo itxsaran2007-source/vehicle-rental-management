@@ -1,0 +1,2 @@
+.btn { padding: 12px 20px; border-radius: 14px; background: linear-gradient(135deg, #38bdf8, #0ea5e9); color: #fff; transition: transform .2s ease; }
+.btn:hover { transform: translateY(-1px); }

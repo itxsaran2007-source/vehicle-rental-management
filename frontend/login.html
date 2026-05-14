@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - DriveX</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body style="display: flex; justify-content: center; align-items: center;">
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-orb orb-3"></div>
+
+    <div class="perspective-container" style="width: 100%; max-width: 450px;">
+        <div class="glass-panel tilt-card" style="padding: 40px; text-align: center;">
+            <h2 style="font-size: 2rem; margin-bottom: 10px; background: linear-gradient(to right, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Welcome Back</h2>
+            <p style="color: var(--text-muted); margin-bottom: 30px;">Login to manage your bookings</p>
+            
+            <form id="loginForm">
+                <div class="form-group" style="text-align: left;">
+                    <label>Email Address</label>
+                    <input type="email" id="email" class="form-control" placeholder="Enter your email" required>
+                </div>
+                <div class="form-group" style="text-align: left;">
+                    <label>Password</label>
+                    <input type="password" id="password" class="form-control" placeholder="Enter your password" required>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 0.9rem;">
+                    <label style="color: var(--text-muted);"><input type="checkbox"> Remember me</label>
+                    <a href="#" style="color: var(--primary-color);">Forgot Password?</a>
+                </div>
+
+                <button type="submit" class="btn-primary" style="width: 100%;">Login to Dashboard</button>
+            </form>
+            
+            <p style="margin-top: 20px; color: var(--text-muted);">Don't have an account? <a href="register.html" style="color: var(--primary-color); font-weight: bold;">Sign Up</a></p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const email    = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+
+            try {
+                // Point to the absolute backend URL to avoid port mismatch issues
+                const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+                    ? 'http://localhost:5000' 
+                    : '';
+                
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    const { token, user } = result.data || result;
+                    
+                    // Store token and user info
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('drivex_user', JSON.stringify(user));
+                    localStorage.setItem('drivex_email', user.email);
+                    localStorage.setItem('drivex_phone', user.phone || '');
+                    
+                    const nameParts = (user.full_name || '').split(' ');
+                    localStorage.setItem('drivex_firstName', nameParts[0] || '');
+                    localStorage.setItem('drivex_lastName', nameParts.slice(1).join(' ') || '');
+
+                    // Redirect based on role
+                    if (user.role === 'admin' || email === 'admin@rental.com') {
+                        localStorage.setItem('admin_token', token); // For consistency with axiosConfig
+                        window.location.href = 'dashboard.html';
+                    } else {
+                        window.location.href = 'home.html';
+                    }
+                } else {
+                    alert(result.message || 'Invalid email or password');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('An error occurred during login. Please check if the server is running.');
+            }
+        });
+    </script>
+
+</body>
+</html>

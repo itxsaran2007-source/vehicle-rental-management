@@ -1,0 +1,11 @@
+:root {
+  --bg: #0b1120;
+  --surface: rgba(15, 23, 42, 0.88);
+  --surface-strong: rgba(15, 23, 42, 0.98);
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --primary: #38bdf8;
+  --success: #22c55e;
+  --warning: #f97316;
+  --danger: #ef4444;
+}
