@@ -149,7 +149,9 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:5000/api';
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+            ? 'http://localhost:5000/api' 
+            : '/api';
         const token = localStorage.getItem('token');
 
         if (!token) {
@@ -170,15 +172,16 @@
                     const tr = document.createElement('tr');
                     const pickup = new Date(b.pickup_datetime).toLocaleDateString();
                     const ret = new Date(b.return_datetime).toLocaleDateString();
+                    const statusClass = b.booking_status ? b.booking_status.toLowerCase() : 'pending';
                     
                     tr.innerHTML = `
-                        <td>#BK-${b.id}</td>
-                        <td>${b.user_name || 'User #' + b.user_id}</td>
+                        <td>${b.booking_reference || '#BK-' + b.id}</td>
+                        <td>${b.customer_name || 'User #' + b.user_id}</td>
                         <td>${b.vehicle_name || 'Vehicle #' + b.vehicle_id}</td>
                         <td>${pickup}</td>
                         <td>${ret}</td>
                         <td>$${b.total_price}</td>
-                        <td><span class="status-badge status-${b.status.toLowerCase()}">${b.status}</span></td>
+                        <td><span class="status-badge status-${statusClass}">${b.booking_status || 'Pending'}</span></td>
                     `;
                     tbody.appendChild(tr);
                 });

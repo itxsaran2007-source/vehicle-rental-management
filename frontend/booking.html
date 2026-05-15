@@ -128,7 +128,7 @@
 
                     <div class="form-group">
                         <label>Pickup Location</label>
-                        <select class="form-control" style="background: rgba(255, 255, 255, 0.05);">
+                        <select id="locationSelect" class="form-control" style="background: rgba(255, 255, 255, 0.05);">
                             <option style="background: var(--bg-color);">Downtown Hub</option>
                             <option style="background: var(--bg-color);">International Airport</option>
                             <option style="background: var(--bg-color);">Westside Branch</option>
@@ -198,16 +198,25 @@
     </div>
 
     <script>
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+            ? 'http://localhost:5000/api' 
+            : '/api';
 
         // Initialize based on URL or defaults
-        window.onload = function () {
+        // Initialize based on URL or defaults
+        window.onload = async function () {
+            await Promise.all([fetchVehicles(), fetchLocations()]);
+            
             const params = new URLSearchParams(window.location.search);
-            const vehicle = params.get('vehicle');
+            const vehicleId = params.get('vehicle_id');
+            const vehicleName = params.get('vehicle');
             const select = document.getElementById('vehicleSelect');
 
-            if (vehicle) {
+            if (vehicleId) {
+                select.value = vehicleId;
+            } else if (vehicleName) {
                 for (let i = 0; i < select.options.length; i++) {
-                    if (select.options[i].text === vehicle) {
+                    if (select.options[i].text === vehicleName) {
                         select.selectedIndex = i;
                         break;
                     }
@@ -217,64 +226,141 @@
             updateSummary();
         };
 
+        async function fetchVehicles() {
+            const select = document.getElementById('vehicleSelect');
+            try {
+                const res = await fetch(`${API_BASE}/vehicles`);
+                const result = await res.json();
+                const vehicles = result.data || result;
+                
+                if (Array.isArray(vehicles)) {
+                    select.innerHTML = '<option value="">Select a vehicle</option>';
+                    vehicles.forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v.id;
+                        opt.text = v.name;
+                        opt.dataset.img = v.image_url || 'https://via.placeholder.com/800x400';
+                        opt.dataset.price = v.price_per_day;
+                        opt.style.background = 'var(--bg-color)';
+                        select.appendChild(opt);
+                    });
+                }
+            } catch (err) {
+                console.error('Error fetching vehicles:', err);
+            }
+        }
+
+        async function fetchLocations() {
+            const select = document.getElementById('locationSelect');
+            if (!select) return;
+
+            try {
+                // Since there's no location API yet, I'll use the IDs I just seeded
+                // Or I can just hardcode them in HTML as long as IDs match.
+                // But let's assume if I added them to the DB, I should probably have an API.
+                // For now, I'll just ensure the IDs in the HTML match the seeded IDs.
+                select.innerHTML = `
+                    <option value="1" style="background: var(--bg-color);">Downtown Hub</option>
+                    <option value="2" style="background: var(--bg-color);">International Airport</option>
+                    <option value="3" style="background: var(--bg-color);">Westside Branch</option>
+                `;
+            } catch (err) {
+                console.error('Error setting locations:', err);
+            }
+        }
+
         function updateSummary() {
             var select = document.getElementById('vehicleSelect');
+            if (!select.value) return;
+            
             var option = select.options[select.selectedIndex];
+            if (!option.dataset.img) return;
 
-            document.getElementById('summaryImg').src = option.getAttribute('data-img');
+            document.getElementById('summaryImg').src = option.dataset.img;
             document.getElementById('summaryName').innerText = option.text;
-            document.getElementById('summaryPrice').innerText = '$' + option.getAttribute('data-price') + '/day';
+            document.getElementById('summaryPrice').innerText = '$' + option.dataset.price + '/day';
         }
 
         function selectPayment(inputElement) {
-            // Reset all payment options to default
             document.querySelectorAll('.payment-option').forEach(el => {
                 el.style.borderColor = 'var(--glass-border)';
                 el.style.background = 'rgba(255,255,255,0.05)';
             });
-            // Highlight the selected one
             if (inputElement.checked) {
                 inputElement.parentElement.style.borderColor = 'var(--primary-color)';
-                inputElement.parentElement.style.background = 'rgba(108, 92, 231, 0.2)'; // semi-transparent primary color
+                inputElement.parentElement.style.background = 'rgba(59, 130, 246, 0.2)';
             }
         }
 
-        function submitBooking(event) {
+        async function submitBooking(event) {
             event.preventDefault();
-
-            var select = document.getElementById('vehicleSelect');
-            var option = select.options[select.selectedIndex];
-            var vehicle = option.text;
-            var price = option.getAttribute('data-price');
-
-            // Validate Dates
-            var dateInputs = document.querySelectorAll('input[type="datetime-local"]');
-            var pickupDate = new Date(dateInputs[0].value);
-            var returnDate = new Date(dateInputs[1].value);
-
-            if (!dateInputs[0].value || !dateInputs[1].value) {
-                alert("Please select both Pickup and Return dates.");
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert("Please login to book a vehicle.");
+                window.location.href = 'login.html';
                 return;
             }
+
+            const vehicleSelect = document.getElementById('vehicleSelect');
+            const locationSelect = document.getElementById('locationSelect');
+            const dateInputs = document.querySelectorAll('input[type="datetime-local"]');
+            const paymentInput = document.querySelector('input[name="payment"]:checked');
+
+            if (!vehicleSelect.value || !locationSelect.value || !dateInputs[0].value || !dateInputs[1].value || !paymentInput) {
+                alert("Please fill in all fields and select a payment method.");
+                return;
+            }
+
+            const pickupDate = new Date(dateInputs[0].value);
+            const returnDate = new Date(dateInputs[1].value);
 
             if (returnDate <= pickupDate) {
-                alert("Return date and time must be strictly after the Pickup date and time.");
+                alert("Return date must be after pickup date.");
                 return;
             }
 
-            var paymentInput = document.querySelector('input[name="payment"]:checked');
-            if (!paymentInput) {
-                alert("Please select a payment method.");
-                return;
-            }
-            var payment = paymentInput.value.toUpperCase();
-            if (payment === 'PAYTM') payment = 'Paytm';
-            if (payment === 'GPAY') payment = 'GPay';
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerText = "Processing...";
 
-            window.location.href = `slip.html?vehicle=${encodeURIComponent(vehicle)}&price=${price}&payment=${payment}`;
+            try {
+                const bookingData = {
+                    vehicle_id: vehicleSelect.value,
+                    location_id: locationSelect.value,
+                    pickup_datetime: dateInputs[0].value,
+                    return_datetime: dateInputs[1].value,
+                    payment_method: paymentInput.value.toUpperCase()
+                };
+
+                const res = await fetch(`${API_BASE}/bookings`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(bookingData)
+                });
+
+                const result = await res.json();
+
+                if (res.ok) {
+                    const booking = result.data || result;
+                    window.location.href = `slip.html?id=${booking.id}`;
+                } else {
+                    alert("Booking failed: " + (result.message || "Unknown error"));
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "Confirm Booking";
+                }
+            } catch (err) {
+                console.error('Booking error:', err);
+                alert("An error occurred. Please try again.");
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Confirm Booking";
+            }
         }
 
     </script>
+
 </body>
 
 </html>

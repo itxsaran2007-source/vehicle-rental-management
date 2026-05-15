@@ -68,43 +68,93 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <h1 style="font-size: 2.5rem;">My Bookings</h1>
             <div style="background: rgba(59, 130, 246, 0.2); border: 1px solid var(--primary-color); padding: 10px 20px; border-radius: 12px; color: white; font-weight: bold;">
-                Total Bookings: <span style="font-size: 1.2rem; margin-left: 5px;">2</span>
+                Total Bookings: <span id="totalBookings" style="font-size: 1.2rem; margin-left: 5px;">0</span>
             </div>
         </div>
         <p style="color: var(--text-muted);">View and manage your current and past rentals.</p>
 
-        <div class="booking-list">
-            <div class="glass-panel tilt-card booking-card">
-                <div class="booking-details">
-                    <img src="https://images.unsplash.com/photo-1555215695-3004980ad54e?q=80&w=800&auto=format&fit=crop" alt="Car" style="width: 120px; border-radius: 10px;">
-                    <div class="booking-info">
-                        <h3>BMW M4 Competition</h3>
-                        <p><i class="far fa-calendar-alt"></i> Oct 24, 2026 - Oct 26, 2026</p>
-                        <p><i class="fas fa-map-marker-alt"></i> Downtown Hub</p>
-                    </div>
-                </div>
-                <div style="text-align: right;">
-                    <div class="status-badge status-active" style="display: inline-block; margin-bottom: 10px;">Active</div>
-                    <p style="font-size: 1.2rem; font-weight: bold; color: var(--primary-color);">$450.00</p>
-                    <a href="slip.html" class="btn-outline" style="padding: 5px 15px; font-size: 0.8rem; margin-top: 10px;">View Slip</a>
-                </div>
-            </div>
-
-            <div class="glass-panel tilt-card booking-card" style="border-left-color: var(--secondary-color);">
-                <div class="booking-details">
-                    <img src="https://images.unsplash.com/photo-1560958089-b8a1929cea89?q=80&w=800&auto=format&fit=crop" alt="Car" style="width: 120px; border-radius: 10px;">
-                    <div class="booking-info">
-                        <h3>Tesla Model S</h3>
-                        <p><i class="far fa-calendar-alt"></i> Sep 10, 2026 - Sep 12, 2026</p>
-                        <p><i class="fas fa-map-marker-alt"></i> International Airport</p>
-                    </div>
-                </div>
-                <div style="text-align: right;">
-                    <div class="status-badge status-completed" style="display: inline-block; margin-bottom: 10px;">Completed</div>
-                    <p style="font-size: 1.2rem; font-weight: bold; color: var(--primary-color);">$360.00</p>
-                </div>
-            </div>
+        <div class="booking-list" id="bookingList">
+            <!-- Dynamic Content -->
+            <p style="text-align: center; padding: 40px; color: var(--text-muted);">Loading your bookings...</p>
         </div>
     </div>
+
+    <script>
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+            ? 'http://localhost:5000/api' 
+            : '/api';
+        const token = localStorage.getItem('token');
+
+        if (!token) {
+            window.location.href = 'login.html';
+        }
+
+        async function fetchMyBookings() {
+            const list = document.getElementById('bookingList');
+            const total = document.getElementById('totalBookings');
+
+            try {
+                const res = await fetch(`${API_BASE}/bookings/my`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await res.json();
+                const bookings = result.data || result;
+
+                if (!Array.isArray(bookings) || bookings.length === 0) {
+                    list.innerHTML = `
+                        <div class="glass-panel" style="padding: 60px; text-align: center; border-radius: 20px;">
+                            <i class="fas fa-calendar-times" style="font-size: 4rem; color: var(--glass-border); margin-bottom: 20px; display: block;"></i>
+                            <h2 style="margin-bottom: 10px;">No Bookings Yet</h2>
+                            <p style="color: var(--text-muted); margin-bottom: 30px;">Ready to hit the road? Explore our premium fleet and book your first ride!</p>
+                            <a href="catalog.html" class="btn-primary">Browse Catalog</a>
+                        </div>
+                    `;
+                    total.innerText = '0';
+                    return;
+                }
+
+                total.innerText = bookings.length;
+                list.innerHTML = '';
+
+                bookings.forEach(b => {
+                    const card = document.createElement('div');
+                    card.className = 'glass-panel tilt-card booking-card';
+                    if (b.booking_status === 'Cancelled') {
+                        card.style.borderLeftColor = '#ef4444';
+                    } else if (b.booking_status === 'Completed') {
+                        card.style.borderLeftColor = 'var(--secondary-color)';
+                    }
+
+                    const pickup = new Date(b.pickup_datetime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const ret = new Date(b.return_datetime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    
+                    const statusClass = b.booking_status === 'Confirmed' ? 'status-active' : (b.booking_status === 'Cancelled' ? 'status-cancelled' : 'status-completed');
+
+                    card.innerHTML = `
+                        <div class="booking-details">
+                            <img src="${b.image_url || 'https://via.placeholder.com/400x250'}" alt="Vehicle" style="width: 120px; height: 80px; object-fit: cover; border-radius: 10px;">
+                            <div class="booking-info">
+                                <h3>${b.vehicle_name}</h3>
+                                <p><i class="far fa-calendar-alt"></i> ${pickup} - ${ret}</p>
+                                <p><i class="fas fa-map-marker-alt"></i> ${b.location_name || 'Pickup Point'}</p>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="status-badge ${statusClass}" style="display: inline-block; margin-bottom: 10px;">${b.booking_status}</div>
+                            <p style="font-size: 1.2rem; font-weight: bold; color: var(--primary-color);">$${Number(b.total_price).toFixed(2)}</p>
+                            <a href="slip.html?id=${b.id}" class="btn-outline" style="padding: 5px 15px; font-size: 0.8rem; margin-top: 10px;">View Slip</a>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                });
+
+            } catch (err) {
+                console.error('Fetch error:', err);
+                list.innerHTML = '<p style="text-align: center; padding: 40px; color: #ef4444;">Error loading bookings. Please try again later.</p>';
+            }
+        }
+
+        fetchMyBookings();
+    </script>
 </body>
 </html>

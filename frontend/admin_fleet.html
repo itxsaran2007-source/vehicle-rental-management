@@ -239,6 +239,10 @@
                     <label>Image URL</label>
                     <input type="text" name="image_url" class="form-control" placeholder="https://example.com/image.jpg">
                 </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description" class="form-control" placeholder="Brief description of the vehicle..." rows="3"></textarea>
+                </div>
                 <div style="display: flex; gap: 15px; margin-top: 30px;">
                     <button type="button" class="btn-primary" style="background: transparent; border: 1px solid var(--glass-border);" onclick="closeModal()">Cancel</button>
                     <button type="submit" class="btn-primary">Add Vehicle</button>
@@ -248,8 +252,11 @@
     </div>
 
     <script>
-        const API_BASE = 'http://localhost:5000/api';
-        const token = localStorage.getItem('token');
+        const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+            ? 'http://localhost:5000/api' 
+            : '/api';
+        
+        const token = localStorage.getItem('admin_token') || localStorage.getItem('token');
 
         if (!token) {
             window.location.href = 'login.html';
@@ -260,27 +267,30 @@
                 const res = await fetch(`${API_BASE}/vehicles`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                const data = await res.json();
+                const result = await res.json();
+                const vehicles = result.data || result;
                 const tbody = document.querySelector('#vehicleTable tbody');
                 tbody.innerHTML = '';
 
-                data.data.forEach(v => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>#V-${v.id}</td>
-                        <td><img src="${v.image_url || 'https://via.placeholder.com/50'}" style="width: 50px; border-radius: 5px;"></td>
-                        <td>${v.name}</td>
-                        <td>${v.category}</td>
-                        <td>$${v.price_per_day}</td>
-                        <td><span style="color: ${v.is_available ? '#10b981' : '#ef4444'}">${v.is_available ? 'Available' : 'Unavailable'}</span></td>
-                        <td>
-                            <button class="action-btn delete" onclick="deleteVehicle(${v.id})"><i class="fas fa-trash"></i></button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+                if (Array.isArray(vehicles)) {
+                    vehicles.forEach(v => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>#V-${v.id}</td>
+                            <td><img src="${v.image_url || 'https://via.placeholder.com/50'}" style="width: 50px; height: 35px; object-fit: cover; border-radius: 5px;" onerror="this.src='https://via.placeholder.com/50'"></td>
+                            <td>${v.name}</td>
+                            <td style="text-transform: capitalize;">${v.category}</td>
+                            <td>$${v.price_per_day}</td>
+                            <td><span style="color: ${v.is_available ? '#10b981' : '#ef4444'}">${v.is_available ? 'Available' : 'Unavailable'}</span></td>
+                            <td>
+                                <button class="action-btn delete" onclick="deleteVehicle(${v.id})" title="Delete Vehicle"><i class="fas fa-trash"></i></button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
             } catch (err) {
-                console.error(err);
+                console.error('Fetch error:', err);
             }
         }
 
@@ -291,16 +301,31 @@
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                if (res.ok) fetchVehicles();
+                if (res.ok) {
+                    fetchVehicles();
+                } else {
+                    const error = await res.json();
+                    alert('Error deleting vehicle: ' + (error.message || 'Unknown error'));
+                }
             } catch (err) {
-                console.error(err);
+                console.error('Delete error:', err);
+                alert('Connection error while deleting vehicle');
             }
         }
 
         document.getElementById('addVehicleForm').onsubmit = async (e) => {
             e.preventDefault();
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerText;
+            
+            submitBtn.innerText = 'Adding...';
+            submitBtn.disabled = true;
+
             const formData = new FormData(e.target);
             const body = Object.fromEntries(formData);
+            
+            // Convert price to number
+            if (body.price_per_day) body.price_per_day = parseFloat(body.price_per_day);
             
             try {
                 const res = await fetch(`${API_BASE}/vehicles`, {
@@ -311,12 +336,23 @@
                     },
                     body: JSON.stringify(body)
                 });
+                
+                const result = await res.json();
+                
                 if (res.ok) {
+                    alert('Vehicle added successfully!');
+                    e.target.reset();
                     closeModal();
                     fetchVehicles();
+                } else {
+                    alert('Error: ' + (result.message || 'Failed to add vehicle'));
                 }
             } catch (err) {
-                console.error(err);
+                console.error('Add vehicle error:', err);
+                alert('Connection error while adding vehicle. Is the server running?');
+            } finally {
+                submitBtn.innerText = originalText;
+                submitBtn.disabled = false;
             }
         };
 
