@@ -140,7 +140,7 @@
                 else if (category === 'bikes') apiCategory = 'bike';
                 else if (category === 'buses') apiCategory = 'bus';
                 
-                const url = apiCategory === 'all' ? `${API_BASE}/vehicles` : `${API_BASE}/vehicles?category=${apiCategory}`;
+                const url = apiCategory === 'all' ? `${API_BASE}/api/vehicles` : `${API_BASE}/api/vehicles?category=${apiCategory}`;
                 const res = await fetch(url);
                 const result = await res.json();
                 const vehicles = result.data || result;

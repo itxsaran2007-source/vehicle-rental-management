@@ -227,7 +227,7 @@
         async function fetchVehicles() {
             const select = document.getElementById('vehicleSelect');
             try {
-                const res = await fetch(`${API_BASE}/vehicles`);
+                const res = await fetch(`${API_BASE}/api/vehicles`);
                 const result = await res.json();
                 const vehicles = result.data || result;
                 
@@ -330,7 +330,7 @@
                     payment_method: paymentInput.value.toUpperCase()
                 };
 
-                const res = await fetch(`${API_BASE}/bookings`, {
+                const response = await fetch(`${API_BASE}/api/bookings`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -339,9 +339,8 @@
                     body: JSON.stringify(bookingData)
                 });
 
-                const result = await res.json();
-
-                if (res.ok) {
+                const result = await response.json();
+                if (response.ok) {
                     const booking = result.data || result;
                     window.location.href = `slip.html?id=${booking.id}`;
                 } else {
